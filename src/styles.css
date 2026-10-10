@@ -340,3 +340,6 @@ body.in-room { overflow: hidden; }
   .banner { white-space: normal; text-align: center; border-radius: 16px; width: max-content; max-width: calc(100% - 24px); font-size: 13px; }
 }
 @media (max-height: 480px) { .rtitle span { display: none; } .emote-pop, .more-pop { bottom: 58px; } }
+
+.pill { font: inherit; font-weight: 800; font-size: 14px; height: 40px; padding: 0 14px; border: 3px solid var(--ink); border-radius: 20px; background: var(--pink); box-shadow: 2px 2px 0 var(--ink); cursor: pointer; color: var(--ink); white-space: nowrap; flex: none; }
+.pill.live { background: #ffd6d6; } .pill:active { transform: translate(2px, 2px); box-shadow: none; }
