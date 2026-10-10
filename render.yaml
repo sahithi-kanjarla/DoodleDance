@@ -1,0 +1,12 @@
+# One-click deploy on https://render.com  (New + > Blueprint > pick this repo)
+services:
+  - type: web
+    name: doodledance
+    runtime: node
+    plan: free
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: node server/server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22

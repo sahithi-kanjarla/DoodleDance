@@ -1,0 +1,28 @@
+{
+  "name": "doodledance",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev-all.mjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node tests/core.test.mjs && node tests/party.test.mjs && node tests/server.test.mjs",
+    "server": "node server/server.js",
+    "dev:all": "node scripts/dev-all.mjs",
+    "start": "node server/server.js",
+    "dev:app": "vite --host"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.21",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
