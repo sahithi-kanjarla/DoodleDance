@@ -46,15 +46,6 @@ function build(id, name, tagline, headR, bodyOpts, face) {
 }
 
 export const EXAMPLES = [
-  build('gooby', 'Gooby', 'Googly eyes, tongue out, zero regrets', 42,
-    { arms: { LEFT: [2.5, 0.5, 70, 60], RIGHT: [2.2, -0.5, 70, 60] }, legs: { LEFT: [0.35, 0.3, 85, 80], RIGHT: [0.4, -0.4, 85, 80] }, colors: { arms: '#f4a261', legs: '#2a9d8f' } },
-    (x, y, r) => [
-      ring(x, y, r),
-      ...[-1, 1].flatMap((s) => [ring(x + s * 16, y - 8, 12, INK, 4), dot(x + s * 16 + s * 4, y - 3, 5)]),
-      arc(x, y + 14, 22, 15, 0.15, Math.PI - 0.15, INK, 5), dot(x + 6, y + 36, 7, '#ff6fb5'),
-      line([[x - 30, y - r + 2], [x - 40, y - r - 22]], '#f4a261', 6), line([[x - 8, y - r], [x - 10, y - r - 28]], '#f4a261', 6),
-      line([[x + 14, y - r], [x + 24, y - r - 26]], '#f4a261', 6), line([[x + 32, y - r + 8], [x + 48, y - r - 14]], '#f4a261', 6),
-    ]),
   build('zigzag', 'Zigzag', 'Hair did a thing. Brain did too.', 40,
     { arms: { LEFT: [0.5, -0.9, 66, 62], RIGHT: [2.4, 0.4, 70, 62] }, legs: { LEFT: [0.2, 0.1, 85, 85], RIGHT: [0.7, -0.5, 85, 80] }, colors: { arms: '#7b2cbf' } },
     (x, y, r) => [
@@ -91,17 +82,6 @@ export const EXAMPLES = [
       line([[x - 30, y + 16], [x - 20, y + 24], [x - 6, y + 14], [x, y + 18], [x + 6, y + 14], [x + 20, y + 24], [x + 30, y + 16]], '#8d6e63', 7),
       line([[x - r - 12, y - r + 8], [x + r + 12, y - r + 8]], INK, 6),
       line([[x - 24, y - r + 8], [x - 24, y - r - 34], [x + 24, y - r - 34], [x + 24, y - r + 8]], INK, 6),
-    ]),
-  build('screamo', 'Screamo', 'AAAAAAAAAAAAA', 40,
-    { arms: { LEFT: [2.8, -0.2, 70, 64], RIGHT: [2.8, 0.2, 70, 64] }, legs: { LEFT: [0.5, 0.0, 88, 82], RIGHT: [0.5, 0.0, 88, 82] }, colors: { arms: '#f4a261', legs: '#f4a261' } },
-    (x, y, r) => [
-      ring(x, y, r),
-      dot(x - 14, y - 10, 6), dot(x + 14, y - 10, 6),
-      line([[x - 24, y - 24], [x - 8, y - 20]], INK, 4), line([[x + 24, y - 24], [x + 8, y - 20]], INK, 4),
-      ring(x, y + 18, 13, INK, 4), dot(x, y + 18, 9, '#e63946'),
-      ...[-1, 1].map((s) => line([[x + s * 14, y - r], [x + s * 18, y - r - 34]], '#f4a261', 6)),
-      line([[x, y - r], [x, y - r - 40]], '#f4a261', 6),
-      line([[x + r + 6, y - 20], [x + r + 6, y - 12]], '#3a86ff', 5),
     ]),
   build('kiki', 'Kiki', 'Falls in love with everything', 38,
     { arms: { LEFT: [0.6, -1.2, 62, 58], RIGHT: [0.6, 1.2, 62, 58] }, legs: { LEFT: [0.5, -0.9, 80, 76], RIGHT: [0.5, 0.9, 80, 76] }, colors: { torso: '#ff6fb5', arms: '#ff6fb5', legs: '#ff6fb5' } },
