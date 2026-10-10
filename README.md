@@ -1,116 +1,172 @@
-# DoodleDance
+# 🕺 DoodleDance
 
-Draw your own stick figure → we rig your exact drawing → your webcam moves it.
+**Draw a stick figure. Move your body. Your drawing dances — together with friends, in realtime.**
 
-Phases 1–6: drawing canvas, automatic rig, rig correction, BlazePose tracking, bone-based retargeting, saved characters.
-**Phases 7–11 (new): party links, realtime multiplayer sync, party floor, 10 themes + lighting + particles, admin-controlled synced music.**
+DoodleDance turns your own doodle into a puppet driven by your webcam, then drops it onto a shared dance floor where
+up to 12 people party together with themes, lights, effects and synced music.
 
-## What's new in this version
-- **Smarter body analysis** (`lib/rig.js`): gaps in strokes are closed, the head is found by several detectors
-  (closed loops, open/scribbled circles via circle-fit, filled discs) and each top head candidate is *tried*;
-  the one that yields the most human-looking body wins. Hats, hair curls, bags and hands no longer get mistaken
-  for heads, limbs drawn without touching the body are bridged back on, hair/hats are kept out of the limbs, and
-  missing limbs get sensible defaults instead of a template fallback.
-- **Stress-test corpus** (`tests/corpus.mjs`, `tests/eval.mjs`, `tests/viz.mjs`): procedurally generated messy
-  figures (wobbly lines, gaps, open heads, hats, hair, bags, capes, tails, raised/bent limbs) with known joints.
-  On that deliberately hard set the old analyzer got 22% of figures fully right, this one gets ~45%
-  (`node tests/eval.mjs 300`). Bags/capes drawn on the body are the main remaining weak spot — use Rig Check.
-- **8 funny ready-made characters** (`lib/examples.js`) with exact rigs: **Use me** or **Remix** in the editor.
-- **Flat, chunky UI**: no gradients, hard shadows, playful copy.
+[Features](#features) · [Quick start](#quick-start) · [Deploy](#deployment) · [How it works](#how-it-works) · [Architecture](#architecture) · [Limitations](#limitations)
 
-## Run
+---
+
+## Features
+
+- **Draw anything** – pen, eraser, fill, undo/redo. Your exact line art is what dances.
+- **Automatic rigging** – detects head, torso and limbs from the drawing, with a manual **Rig Check** editor to fix joints.
+- **Webcam motion tracking** – MediaPipe BlazePose runs in the browser; only ten bone angles ever leave your device, never video.
+- **Multiplayer parties** – share a 6-character code or `/party/CODE` link; reconnect automatically; host is promoted if the host leaves.
+- **10 themes, 5 lighting modes, 4 particle effects** – Neon Club, Disco Ball, Space Rave, Cyber City and more.
+- **Synced music** – built-in synthesised tracks, uploaded audio (≤ 15 MB), or a YouTube link. Everyone hears the same moment, and late joiners start mid-song.
+- **Host controls** – theme, lights, music, start/stop party with a 3-2-1 countdown, move or kick people. The host can also play/pause a YouTube video by clicking it.
+- **Emotes** – wave, jump, clap, dance, heart, confetti, laugh, surprise (keys `1`–`8`).
+- **Works without a camera** – your character idles and bops to the music.
+
+## Quick start
+
+Requires **Node.js 20+** (22 recommended).
 
 ```bash
+git clone https://github.com/sahithi-kanjarla/DoodleDance.git
+cd DoodleDance
 npm install
-npm run dev        # party server (:8787) + app (:5173) together. Open http://localhost:5173
-                   # custom port: npm run dev -- --port 5000
-npm run dev:app    # app only (no parties)
-npm run server     # server only
-npm run build && npm start   # serve EVERYTHING from :8787 (what you deploy, see DEPLOY.md)
-npm test           # core + party libs + real-socket server integration tests
+npm run dev          # party server on :8787 + app on :5173
 ```
 
-Host a party → copy the invite link (`/party/ABC123`) → friends open it, pick a character, walk in.
-To play across the internet, deploy `npm start` anywhere that runs Node ≥ 20 and supports WebSockets
-(Render, Fly.io, Railway, a VPS). Use HTTPS — browsers only allow the camera on https or localhost.
-The server has **zero dependencies** and keeps rooms in memory (a room closes 10 min after the last person leaves).
+Open <http://localhost:5173>. Camera access works on `localhost` and on HTTPS sites only.
 
-## Deploying
-See **DEPLOY.md** (Render blueprint + Dockerfile included). Needs WebSockets + HTTPS.
-
-## Drawing tips (also shown in the editor)
-Keep hands and feet away from other parts, leave a small gap between limbs and the body, close the head circle, and use simple lines.
-The **🪣 Fill** tool colours any *closed* shape with one click; the rig is found from the line art only, so colour never confuses it.
-
-## Party features
-| | |
+| Command | What it does |
 |---|---|
-| Links & codes | 6-char codes, `/party/CODE` deep links, up to 12 people, rejoin on reconnect (45 s grace), host auto-promotion if the host leaves |
-| Sync | Only compact bone angles (10 numbers, ~20 Hz) + position go over the WebSocket. No video, no landmarks. Server rate-limits poses and drops them for slow clients |
-| Room layout | Google-Meet style: the stage fills the window, controls live in a bottom bar, Theme/Music/People open in a right-hand side panel (stage resizes beside it) so you see changes live. Step toward/away from the camera and your character comes forward/goes back on the floor (limited range, never into a neighbour). Resizable camera tile (− / ＋), full-screen (F) |
-| Floor | Everyone has their own spot (auto-spread), 2.5D depth scaling, host can drag anybody, away players fade |
-| No camera? | Your character idles, and bops to the music |
-| Themes | Neon Club, Disco Ball, Fairy Garden, Spooky Night, Beach Party, Space Rave, Cyber City, Cozy Room, Concert Stage, Forest Camp (all flat, no gradients) |
-| Lighting / effects | Off, Purple, Blue, Warm, Rainbow beams that pulse with the music; confetti, disco spots, smoke, sparkles |
-| Emotes | Wave, Jump, Clap, Dance, Heart, Confetti, Laugh, Surprise (keys 1–8). They override a few bones of *your own drawing* for a moment, never swap the character |
-| Host panel | Name, theme, lighting, effects, start party (3-2-1 countdown), music, kick, move people |
+| `npm run dev` | Server and app together (hot reload) |
+| `npm run dev:app` | App only (no parties) |
+| `npm run server` | Realtime server only |
+| `npm run build && npm start` | Production mode: one process serves site **and** WebSocket on `:8787` |
+| `npm test` | Core, party-library and real-socket server tests |
 
-## Music: how it works and how to add songs
-The server stores `{source, playing, pos, ts}`. Every client computes `pos + (serverNow − ts)` using a ping-measured clock offset and
-nudges its own player to that spot, so everybody hears the same moment, and late joiners start mid-song. Volume is local to each listener.
+## Deployment
 
-1. **Built-in tracks** (default): 6 tracks synthesised live with WebAudio. No files, no licensing. Real audio analysis drives the visualizer and stage pulse.
-2. **Upload a file** (mp3/wav/ogg/m4a, ≤ 15 MB): sent to the server, which streams it (HTTP Range) to everyone in the room. Only upload music you have the rights to play.
-3. **YouTube link**: paste any watch/youtu.be/shorts link. Each guest's browser loads the official YouTube embedded player and the host's play/pause/seek is mirrored.
-   Limits: YouTube's terms require the player to stay visible (it is shown in the music card); you cannot extract the audio, so the visualizer is a simulated beat;
-   some videos block embedding; browsers need one click before sound is allowed (a "Tap to hear the music" button appears).
-4. Not built: Spotify (needs Premium on every listener's account) and SoundCloud (its widget API would slot into `music.js` the same way as YouTube).
+DoodleDance is **a single Node process** serving the built site and the WebSocket server on one port (`PORT`, default `8787`).
+Host requirements: Node 20+, WebSocket support, HTTPS. Static-only hosts (Vercel, Netlify, GitHub Pages) will **not** work.
 
-### Protocol (JSON over `/ws`)
-client → server: `ping`, `create`, `join`, `rejoin`, `pose{a[10],s,dx,dy}`, `emote`, `leave`; host only: `admin{patch}`, `phase`, `music{action,...}`, `move`, `kick`.
-server → client: `welcome`, `joined`, `left`, `presence`, `host`, `pose`, `emote`, `settings`, `phase`, `music`, `move`, `kicked`, `pong`, `error`.
-HTTP: `GET /api/party?code=`, `POST /api/upload` (host token), `GET /media/CODE/ID`.
+### Render (free tier, recommended)
 
-The BlazePose model (`pose_landmarker_full`) and MediaPipe WASM are fetched from
-Google Cloud Storage / jsDelivr the first time you press **Start camera**.
+1. Push this repository to GitHub.
+2. On [render.com](https://render.com): **New → Blueprint** → select the repo. Render reads `render.yaml` and deploys.
+3. Open the `https://<name>.onrender.com` URL, host a party and share the invite link.
+
+Manual setup instead of a Blueprint: **New → Web Service**, build command `npm install --include=dev && npm run build`,
+start command `node server/server.js`, health check path `/api/health`.
+
+> **Free-tier behaviour:** the service sleeps after ~15 minutes idle (first visit takes ~30 s) and parties live in memory,
+> so a sleep or restart ends running parties. Saved characters live in each user's browser and survive.
+> Ping `/api/health` every 10–14 min (e.g. UptimeRobot) to keep it awake.
+
+### What each file is for
+
+| File | Role in deployment |
+|---|---|
+| `render.yaml` | Render Blueprint: service type, free plan, build/start commands, health check, Node version |
+| `Dockerfile` / `.dockerignore` | Container build for Fly.io, Railway, or any Docker host |
+| `package.json` | Dependencies and the `build` / `start` scripts the host runs |
+| `server/server.js`, `server/ws.js` | The production server (HTTP + WebSocket, zero dependencies) |
+| `dist/` | Build output generated by `vite build` on the host — **not committed** |
+| `DEPLOY.md` | Extended hosting notes |
+
+### Other hosts
+
+```bash
+# Docker
+docker build -t doodledance . && docker run -p 8787:8787 doodledance
+
+# VPS
+npm install && npm run build && PORT=8080 npm start   # put Caddy/nginx in front for HTTPS
+```
+
+Behind nginx, `/ws` needs `proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";`.
+
+### Configuration
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `8787` | Port the server listens on |
+| `NODE_VERSION` | `22` (set in `render.yaml`) | Node version on Render |
+
+No secrets or API keys are required.
 
 ## How it works
 
 | Step | File | What happens |
 |---|---|---|
-| Draw | `components/DrawingCanvas.jsx` | Free drawing: pen, eraser, size, colour, undo/redo, clear. Transparent canvas = your artwork. |
-| Auto rig | `lib/rig.js` | Finds the head (closed loop, else thick blob), cuts it off, thins the body to a skeleton, builds a shortest-path tree from the neck, prunes spurs (hair/accessories), pairs the four limb ends into arms vs legs by where their branches merge, puts elbows/knees at the bends. Any pose works; the drawn pose is the **rest pose**. Falls back to a template + warnings if unsure. |
-| Rig check | `components/RigEditor.jsx` | Drag any joint, resize the head, and toggle **Show which bone each line belongs to** to see exactly what is bound to what. |
-| Binding | `lib/binding.js` | Every artwork pixel is bound to exactly one bone of the *character's own* skeleton (never to webcam landmarks). Hair/eyes/hats prefer the head. Each child gets a small overlap of its parent's pixels to hide cracks at bent joints. |
-| Tracking | `lib/pose.js` | MediaPipe Pose Landmarker (BlazePose full) → One-Euro smoothing → **bone angles**. Each limb bone uses only its own two landmarks. |
-| Retarget | `lib/retarget.js` | Forward kinematics on the character's skeleton: each bone rotates by `(target angle − rest angle)` about its own joint, so your proportions and line art are preserved. Occluded limbs hold their last angle. |
-| Render | `lib/character.js` | Draws the per-bone artwork pieces back-to-front with the name tag following the head. |
+| Draw | `components/DrawingCanvas.jsx` | Free drawing on a transparent canvas; the artwork is the character. |
+| Auto-rig | `lib/rig.js` | Finds the head (closed loop, open circle, or blob), thins the body to a skeleton, prunes spurs, pairs limb ends into arms/legs, places elbows and knees at bends. Falls back to a template with warnings. |
+| Rig check | `components/RigEditor.jsx` | Drag joints, resize the head, and visualise which bone each stroke is bound to. |
+| Binding | `lib/binding.js` | Every artwork pixel is bound to exactly one bone, with a small overlap to hide cracks at bent joints. |
+| Tracking | `lib/pose.js` | BlazePose → One-Euro smoothing → bone angles. |
+| Retarget | `lib/retarget.js` | Forward kinematics: each bone rotates by *(target − rest)* about its own joint, preserving your proportions. |
+| Render | `lib/character.js` | Draws bone pieces back-to-front with a name tag. |
 
-### Left / right convention
-The webcam is treated as a **mirror**. Your left side drives the character's **screen-left**
-limbs (`LEFT_*` = smaller x in the drawing). Raise your left hand → the hand on the left of the
-screen goes up, exactly like looking in a mirror.
+**Mirror convention:** the webcam acts as a mirror — raise your left hand and the character's screen-left hand goes up.
 
-### Pose data (ready for Phase 8)
-The tracker output is character-agnostic and tiny — this is what will go over the websocket:
+### Synced music
 
-```js
-{ torso, head, uaL, laL, uaR, laR, ulL, llL, ulR, llR,  // absolute bone angles (rad)
-  scale, dx, dy }                                       // distance + position, in torso-lengths
+The server stores `{source, playing, pos, ts}`. Each client computes `pos + (serverNow − ts)` using a ping-measured clock offset and
+nudges its own player to that position. Volume is local to each listener.
+
+1. **Built-in tracks** – six tracks synthesised live with WebAudio; no files, no licensing.
+2. **Upload** – mp3/wav/ogg/m4a up to 15 MB, streamed to the room with HTTP Range. Only upload music you have rights to play.
+3. **YouTube** – every guest loads the official embedded player; the host's play/pause is mirrored to everyone. Guests cannot pause
+   locally (a shield sits over the video) so everyone stays in sync. Some videos block embedding, and browsers need one click before sound.
+
+## Architecture
+
 ```
-No video or landmarks leave the browser.
+Browser (React + Vite)                         Node server (zero dependencies)
+┌──────────────────────────┐   JSON / WebSocket  ┌─────────────────────────────┐
+│ draw → rig → webcam pose │ ──── /ws ─────────▶ │ rooms in memory             │
+│ BlazePose (WASM, local)  │ ◀──────────────────  │ rate limits, host authority │
+│ PartyScene canvas        │   HTTP /api, /media │ static files (gzip + cache) │
+└──────────────────────────┘                     └─────────────────────────────┘
+```
 
-## Known limits
-- Tracking is 2D (image plane). A limb pointing at the camera foreshortens; the angle is still
-  right but the drawn limb keeps its length.
-- Bones are rigid pieces (no mesh bending), so very thick strokes may show a small notch at a sharply
-  bent joint.
-- Characters are stored in `localStorage` (`lib/storage.js` is the seam for Supabase).
-- Auto-rig works best with a closed head loop and connected limbs; otherwise use Rig Check.
+**Protocol** (JSON over `/ws`)
+- client → server: `ping`, `create`, `join`, `rejoin`, `pose{a[10],s,dx,dy}`, `emote`, `leave`; host only: `admin`, `phase`, `music`, `move`, `kick`
+- server → client: `welcome`, `joined`, `left`, `presence`, `host`, `pose`, `emote`, `settings`, `phase`, `music`, `move`, `kicked`, `pong`, `error`
+- HTTP: `GET /api/health`, `GET /api/party?code=`, `POST /api/upload` (host token), `GET /media/CODE/ID`
 
-## Tested vs not tested
-- Tested here: rig/retarget core (35 tests), party libs (10), server over real sockets (20: auth, sync, rate limits, uploads + Range, reconnect, kick, host promotion, full room),
-  and a two-browser run (host + guest) against the real server showing theme/lighting/music/countdown/emote sync.
-- **Not tested** in the build sandbox (no internet/camera): live webcam tracking inside a party, YouTube playback, speaker audio, `npm install` + `vite build`.
-  Try those first on your machine.
-- Rooms are in memory and single-process. For several server instances, move rooms to Redis/Supabase Realtime.
+**Server safeguards:** pose rate limiting and slow-client dropping, WebSocket origin check, 200-room cap, per-party media cap (40 MB),
+input validation on every message, graceful handling of malformed uploads.
+
+```
+src/            React app (components/, lib/)
+server/         HTTP + WebSocket server
+shared/         Constants shared by app and server
+scripts/        Dev launcher
+tests/          Rig, retarget, party and server integration tests
+```
+
+## Drawing tips
+
+Keep hands and feet apart from other parts, leave a small gap between limbs and body, close the head circle, and use simple lines.
+The **Fill** tool colours closed shapes without affecting the rig, which is found from line art only.
+
+## Limitations
+
+- Tracking is 2D; a limb pointing at the camera foreshortens but keeps its drawn length.
+- Bones are rigid pieces (no mesh bending); very thick strokes may notch at sharply bent joints.
+- Auto-rig works best with a closed head loop and connected limbs; use Rig Check otherwise. Bags and capes drawn on the body are the weakest case.
+- Rooms are in memory on a single process; running multiple instances would need Redis or similar.
+- The pose model and WASM load from Google Cloud Storage / jsDelivr on first camera start, and fonts from Google Fonts.
+- Characters are stored in `localStorage` (`lib/storage.js` is the seam for a database).
+
+## Testing
+
+`npm test` runs 65 checks: rig and retarget core (35), party libraries (10), and the server over real sockets (20: auth, sync,
+rate limits, uploads with Range, reconnect, kick, host promotion, full room). Live webcam tracking, YouTube playback and audio
+need manual testing in a browser.
+
+## Tech stack
+
+React 18 · Vite 5 · MediaPipe Tasks Vision · WebAudio · Canvas 2D · Node.js (`http`, custom RFC 6455 WebSocket)
+
+---
+
+Made by [Sahithi Kanjarla](https://github.com/sahithi-kanjarla).
