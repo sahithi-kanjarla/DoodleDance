@@ -64,6 +64,9 @@ function validSource(s) {
 
 export function createPartyServer({ distDir } = {}) {
   const rooms = new Map();
+  const stats = { since: Date.now(), partiesCreated: 0, joins: 0, peakOnline: 0 };
+  const online = () => { let n = 0; for (const r of rooms.values()) for (const p of r.participants.values()) if (p.connected) n++; return n; };
+  const noteOnline = () => { const n = online(); if (n > stats.peakOnline) stats.peakOnline = n; return n; };
 
   const publicSettings = (r) => ({ name: r.name, theme: r.theme, lighting: r.lighting, effects: r.effects });
   const publicP = (p, withChar) => ({ id: p.id, name: p.name, x: p.x, y: p.y, isHost: p.isHost, connected: p.connected, ...(withChar ? { character: p.character } : {}) });
@@ -143,7 +146,9 @@ export function createPartyServer({ distDir } = {}) {
           phase: 'lobby', phaseAt: 0, music: { source: null, playing: false, pos: 0, ts: Date.now() }, participants: new Map(), media: new Map(), mediaBytes: 0, emptyTimer: null };
         const r = addParticipant(room, ws, m.user, true);
         if (r.error) { room = null; return fail(r.error); }
-        rooms.set(room.code, room); me = r.p; return welcome(room, me);
+        rooms.set(room.code, room); me = r.p;
+        stats.partiesCreated++; console.log(`[party] created ${room.code} (online ${noteOnline()}, rooms ${rooms.size})`);
+        return welcome(room, me);
       }
       if (m.t === 'join' || m.t === 'rejoin') {
         if (me) return fail('already-in-room');
@@ -160,6 +165,7 @@ export function createPartyServer({ distDir } = {}) {
         const res = addParticipant(r, ws, m.user, false);
         if (res.error) return fail(res.error);
         room = r; me = res.p; welcome(r, me);
+        stats.joins++; console.log(`[party] join ${r.code} (online ${noteOnline()}, rooms ${rooms.size})`);
         return broadcast(r, { t: 'joined', participant: publicP(me, true) }, me.id);
       }
       if (!room || !me) return fail('not-in-room');
@@ -245,6 +251,9 @@ export function createPartyServer({ distDir } = {}) {
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
     if (req.method === 'OPTIONS') { res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,OPTIONS' }); return res.end(); }
+    if (url.pathname === '/api/stats') {
+      return json(res, 200, { online: online(), partiesOpen: rooms.size, peakOnline: stats.peakOnline, partiesCreated: stats.partiesCreated, joins: stats.joins, since: new Date(stats.since).toISOString(), uptimeMinutes: Math.round((Date.now() - stats.since) / 60000), note: 'Counters reset when the server restarts or sleeps.' });
+    }
     if (url.pathname === '/api/health') return json(res, 200, { ok: true, rooms: rooms.size });
     if (url.pathname === '/api/party') {                                   // does this party exist? (join page)
       const r = rooms.get((url.searchParams.get('code') || '').toUpperCase());

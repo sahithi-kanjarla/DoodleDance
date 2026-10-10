@@ -40,6 +40,7 @@ export default function PartyRoom({ session, onExit }) {
   const [isFs, setIsFs] = useState(false);
   const rootRef = useRef(null), overlayRef = useRef(null);
   const [, force] = useState(0);
+  const [emoteOpen, setEmoteOpen] = useState(false);
   if (!musicRef.current) musicRef.current = new MusicController({ getServerNow: () => netRef.current?.serverNow() ?? Date.now(), onChange: setMusicInfo });
 
   const drawSkeleton = (lms) => {
@@ -200,9 +201,9 @@ export default function PartyRoom({ session, onExit }) {
         <div className="rtitle"><b>{room?.name || 'Connecting…'}</b>
           <span>{status === 'online' ? `${presentCount} here · ${live ? 'LIVE' : 'lobby'}` : status === 'reconnecting' ? 'Reconnecting…' : 'Connecting…'}</span></div>
         <div className="rspace" />
-        {code && <><span className="code sm">{code}</span><button className="btn primary sm" onClick={copy}>{copied ? '✓ Copied' : '🔗 Invite'}</button></>}
-        <button className="btn ghost sm" onClick={toggleFs} title="Full screen (F)">{isFs ? '🗗 Exit full screen' : '⛶ Full screen'}</button>
-        <button className="btn ghost sm danger" onClick={() => onExit()}>Leave</button>
+        {code && <><span className="code sm">{code}</span>
+          <button className="ib" onClick={copy} title="Copy invite link" aria-label="Copy invite link">{copied ? '✓' : '🔗'}</button></>}
+        <button className="ib" onClick={toggleFs} title="Full screen (F)" aria-label="Full screen">{isFs ? '🗗' : '⛶'}</button>
       </div>
 
       <div className="rmid">
@@ -250,18 +251,21 @@ export default function PartyRoom({ session, onExit }) {
       )}
       </div>
 
-      <div className="rbar bottom">
-        <div className="emotes2">
-          {EMOTES.map((k, i) => <button key={k} className="emote2" onClick={() => net?.emote(k)} title={`${EMOTE_INFO[k].label} (${i + 1})`}>{EMOTE_INFO[k].emoji}</button>)}
+      {emoteOpen && (
+        <div className="emote-pop" role="menu">
+          {EMOTES.map((k, i) => <button key={k} className="emote2" onClick={() => { net?.emote(k); setEmoteOpen(false); }} title={`${EMOTE_INFO[k].label} (${i + 1})`} aria-label={EMOTE_INFO[k].label}>{EMOTE_INFO[k].emoji}</button>)}
         </div>
-        <div className="rsep" />
+      )}
+      <div className="rbar bottom">
         {cam === 'on'
-          ? <button className="tb on" onClick={() => (selfSize === 'hide' ? setSelfSize('l') : stopCam())}>📷 <span>{selfSize === 'hide' ? 'Show me' : 'Camera on'}</span></button>
-          : <button className="tb" onClick={startCam} disabled={cam === 'loading'}>📷 <span>{cam === 'loading' ? 'Loading…' : 'Start camera'}</span></button>}
-        {isHost && <button className={`tb ${pop === 'theme' ? 'on' : ''}`} onClick={() => togglePop('theme')}>🎨 <span>Theme</span></button>}
-        <button className={`tb ${pop === 'music' ? 'on' : ''}`} onClick={() => togglePop('music')}>🎵 <span>Music</span></button>
-        <button className={`tb ${pop === 'people' ? 'on' : ''}`} onClick={() => togglePop('people')}>👥 <span>{isHost ? 'People' : `People (${presentCount})`}</span></button>
-        {isHost && <button className={`tb go ${live ? 'live' : ''}`} onClick={() => net.phase(live ? 'lobby' : 'live')}>{live ? '⏹ End party' : '🎉 Start party'}</button>}
+          ? <button className="ib lg on" onClick={() => (selfSize === 'hide' ? setSelfSize('l') : stopCam())} title={selfSize === 'hide' ? 'Show my camera' : 'Turn camera off'} aria-label="Camera">📷</button>
+          : <button className="ib lg" onClick={startCam} disabled={cam === 'loading'} title={cam === 'loading' ? 'Loading camera…' : 'Start camera'} aria-label="Start camera">{cam === 'loading' ? '⏳' : '📷'}</button>}
+        <button className={`ib lg ${emoteOpen ? 'on' : ''}`} onClick={() => setEmoteOpen((v) => !v)} title="Emotes (keys 1–8)" aria-label="Emotes">😀</button>
+        {isHost && <button className={`ib lg ${pop === 'theme' ? 'on' : ''}`} onClick={() => togglePop('theme')} title="Theme & lights" aria-label="Theme">🎨</button>}
+        <button className={`ib lg ${pop === 'music' ? 'on' : ''}`} onClick={() => togglePop('music')} title="Music" aria-label="Music">🎵</button>
+        <button className={`ib lg ${pop === 'people' ? 'on' : ''}`} onClick={() => togglePop('people')} title={isHost ? 'People' : `People (${presentCount})`} aria-label="People">👥{!isHost && <i className="badge">{presentCount}</i>}</button>
+        {isHost && <button className={`ib lg go ${live ? 'live' : ''}`} onClick={() => net.phase(live ? 'lobby' : 'live')} title={live ? 'End party' : 'Start party'} aria-label={live ? 'End party' : 'Start party'}>{live ? '⏹' : '🎉'}</button>}
+        <button className="ib lg leave" onClick={() => onExit()} title="Leave party" aria-label="Leave party">🚪</button>
         {camErr && <span className="camerr">{camErr}</span>}
       </div>
     </div>
