@@ -55,6 +55,28 @@ Other commands:
 
 **Synced music** (`src/lib/music.js`): the server stores what is playing and from where. Every client works out the same position using a measured clock offset, so everyone hears the same moment and late joiners start mid-song. Volume is per listener. Only the host can play or pause.
 
+## Architecture
+
+```
+        Browser (each player)                          Server (one Node process)
+ ┌───────────────────────────────┐              ┌───────────────────────────────┐
+ │ Drawing canvas  →  auto-rig   │              │ Party rooms (in memory)       │
+ │ Webcam → BlazePose (WASM)     │   WebSocket  │  - join / rejoin / host       │
+ │ Bone angles → your character  │ ───────────▶ │  - rate limits, validation    │
+ │ Party canvas (all characters) │ ◀─────────── │  - music state + clock sync   │
+ │ Music player (synth/file/YT)  │              │                               │
+ └───────────────────────────────┘     HTTP     │ Static site (the built app)   │
+                                  ◀────────────▶ │ /api/health, /api/stats       │
+                                                 │ /api/upload, /media/…         │
+                                                 └───────────────────────────────┘
+```
+
+- **Everything heavy runs in the browser:** drawing, rigging and pose tracking. The server never sees video or your artwork pixels beyond the character image you choose to bring into a party.
+- **The server is small and stateful:** it only relays compact pose numbers, settings and music state between people in the same room. Rooms live in memory and close 10 minutes after the last person leaves.
+- **One process, one port:** the same Node server delivers the website and the WebSocket endpoint (`/ws`), which keeps hosting simple.
+- **Messages** are JSON over `/ws`. Players send `pose`, `emote`, `join`, `rejoin`, `leave`. Only the host can send `admin`, `phase`, `music`, `move` and `kick`, and the server checks that.
+- **Other endpoints:** `GET /api/health` (used by the host's health check), `GET /api/stats` (people online, parties open), `GET /api/party?code=` (does this party exist), `POST /api/upload` (host only, audio only) and `GET /media/CODE/ID` (uploaded track, with Range support).
+
 ## Project layout
 
 ```
@@ -74,9 +96,23 @@ public/     Favicon
 - Some YouTube videos block embedding. Uploaded audio is limited to 15 MB.
 - The pose model and fonts are loaded from Google/jsDelivr, so the camera step needs internet.
 
-## Deploying
+## Deployment
 
-See [DEPLOY.md](DEPLOY.md). Short version: it needs any host that runs Node (or Docker) with WebSockets and HTTPS. A `render.yaml` and a `Dockerfile` are included. Static-only hosts like Netlify or Vercel won't work because of the realtime server.
+The live site runs on **Render's free plan** from this repo, using the included `Dockerfile`.
+
+To deploy your own copy:
+
+1. Fork or push the repo to GitHub.
+2. On [render.com](https://render.com) choose **New → Web Service** and connect the repo. It detects the `Dockerfile`.
+3. Pick the **Free** instance, set the health check path to `/api/health`, and leave everything else as it is. No environment variables or secrets are needed (Render sets `PORT` itself).
+4. Deploy. Every push to `main` redeploys automatically.
+
+Things to know on the free plan:
+
+- The service sleeps after about 15 minutes without traffic, and the next visit takes ~30 seconds to wake it. A free uptime monitor pinging `/api/health` every 10 minutes keeps it awake.
+- Parties live in memory, so a sleep or restart ends running parties. Saved characters are unaffected because they live in each person's browser.
+
+Any host that runs Node 20+ or Docker, supports WebSockets and serves HTTPS will work (Fly.io, Railway, a VPS behind Caddy or nginx). Static-only hosts like Netlify or Vercel won't, because of the realtime server. More hosting notes are in [DEPLOY.md](DEPLOY.md).
 
 ## Credits
 
